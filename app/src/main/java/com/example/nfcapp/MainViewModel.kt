@@ -57,15 +57,6 @@ public class MainViewModel : AndroidViewModel {
         options.putInt(NfcAdapter.EXTRA_READER_PRESENCE_CHECK_DELAY, 30000);
         return options
     }
-    //region NFC Methods
-    public fun onCheckNFC(isChecked : Boolean) { Coroutines.io(this@MainViewModel, { Log.d(TAG, "onCheckNFC(${isChecked})")
-        if (isChecked) {
-            postNFCStatus(NFCStatus.Tap)
-        } else {
-            postNFCStatus(NFCStatus.NoOperation)
-            postToast("NFC is Disabled, Please Toggle On!")
-        }
-    } ) }
 
     public fun readTag(tag : Tag?) { Coroutines.default(this@MainViewModel, { Log.d(TAG, "readTag(${tag} ${tag?.getTechList()})")
         postNFCStatus(NFCStatus.Process)
@@ -127,11 +118,6 @@ public class MainViewModel : AndroidViewModel {
             liveNFC.emit(NFCStatus.NotSupported)
             postToast("NFC Not Supported!")
             liveTag.emit("NFC Not Supported!")
-        }
-        if (NFCManager.isSupportedAndEnabled(getApplication()) && status == NFCStatus.Tap) {
-            liveTag.emit("Please Tap Now!")
-        } else {
-            liveTag.emit(null)
         }
     }
 
