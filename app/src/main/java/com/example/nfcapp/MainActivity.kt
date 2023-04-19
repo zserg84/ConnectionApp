@@ -1,49 +1,49 @@
 package com.example.nfcapp
 
+import android.content.Intent
 import android.nfc.NfcAdapter
-import android.nfc.Tag
-import androidx.appcompat.app.AppCompatActivity
+import android.os.Build
 import android.os.Bundle
-import android.util.Log
+import android.widget.EditText
 import android.widget.Toast
-import androidx.databinding.DataBindingUtil
-import androidx.lifecycle.ViewModelProvider
-import com.example.nfcapp.databinding.ActivityBinder
-import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.launch
+import androidx.annotation.RequiresApi
+import androidx.appcompat.app.AppCompatActivity
 
-public class MainActivity : AppCompatActivity, NfcAdapter.ReaderCallback {
+class MainActivity : AppCompatActivity() {
 
-    companion object {
-        private val TAG = MainActivity::class.java.getSimpleName()
-    }
+    private var mNfcAdapter: NfcAdapter? = null
 
-    private var binder : ActivityBinder? = null
-    private val viewModel : MainViewModel by lazy { ViewModelProvider(this).get(MainViewModel::class.java) }
-
-    constructor() {
-
-    }
-
-    override fun onCreate(savedInstanceState : Bundle?) {
-        binder = DataBindingUtil.setContentView(this@MainActivity, R.layout.activity_main)
-        binder?.setViewModel(viewModel)
-        binder?.setLifecycleOwner(this@MainActivity)
+    @RequiresApi(Build.VERSION_CODES.TIRAMISU)
+    override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        Coroutines.main(this@MainActivity, { scope ->
-            scope.launch( block = { binder?.getViewModel()?.observeNFCStatus()?.collectLatest ( action = { status -> Log.d(TAG, "observeNFCStatus $status")
-                NFCManager.enableReaderMode(this@MainActivity, this@MainActivity, this@MainActivity, viewModel.getNFCFlags(), viewModel.getExtras())
-            }) })
-            scope.launch( block = { binder?.getViewModel()?.observeToast()?.collectLatest ( action = { message -> Log.d(TAG, "observeToast $message")
-                Toast.makeText(this@MainActivity, message, Toast.LENGTH_LONG).show()
-            }) })
-            scope.launch( block = { binder?.getViewModel()?.observeTag()?.collectLatest ( action = { tag -> Log.d(TAG, "observeTag $tag")
-                binder?.textViewExplanation?.setText(tag)
-            }) })
-        })
+        setContentView(R.layout.activity_main)
+        mNfcAdapter = NfcAdapter.getDefaultAdapter(this)
+        Toast.makeText(applicationContext, NFCUtil.retrieveNFCMessage(this.intent), Toast.LENGTH_LONG).show()
     }
 
-    override fun onTagDiscovered(tag : Tag?) {
-        binder?.getViewModel()?.readTag(tag)
+    override fun onResume() {
+        super.onResume()
+        mNfcAdapter?.let {
+            NFCUtil.enableNFCInForeground(it, this, javaClass)
+        }
+    }
+
+    override fun onPause() {
+        super.onPause()
+        mNfcAdapter?.let {
+            NFCUtil.disableNFCInForeground(it, this)
+        }
+    }
+
+    @RequiresApi(Build.VERSION_CODES.TIRAMISU)
+    override fun onNewIntent(intent: Intent?) {
+        super.onNewIntent(intent)
+        val messageEditText = findViewById<EditText>(R.id.messageEditText)
+        val messageWrittenSuccessfully = NFCUtil.createNFCMessage(messageEditText.text.toString(), intent)
+        Toast.makeText(applicationContext,
+            messageWrittenSuccessfully.ifElse("Successful Written to Tag", "Something When wrong Try Again"),
+            Toast.LENGTH_LONG).show()
     }
 }
+
+fun <T> Boolean.ifElse(primaryResult: T, secondaryResult: T) = if (this) primaryResult else secondaryResult
